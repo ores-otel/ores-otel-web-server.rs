@@ -1,5 +1,9 @@
 #![forbid(unsafe_code)]
 
+#[path = "../generated/rust/env.rs"]
+mod env;
+
+
 use crate::env_map::{value, EnvMap};
 
 #[derive(Clone, Debug)]
@@ -12,11 +16,11 @@ pub struct WebConfig {
 impl WebConfig {
     pub fn from_env_map(env: &EnvMap) -> Self {
         Self {
-            bind: value(env, "ORES_OTEL_WEB_BIND")
+            bind: value(env, env::BIND)
                 .unwrap_or("127.0.0.1:8081")
                 .to_owned(),
-            api_http_base: value(env, "ORES_OTEL_API_HTTP_BASE").map(str::to_owned),
-            database_url: value(env, "ORES_OTEL_DATABASE_URL").map(str::to_owned),
+            api_http_base: value(env, env::API_HTTP_BASE).map(str::to_owned),
+            database_url: value(env, env::DATABASE_URL).map(str::to_owned),
         }
     }
 
