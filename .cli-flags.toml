@@ -1,17 +1,27 @@
-# flags-2-env surface for `ores-otel-web`
-[flags.config]
-env = "ORES_OTEL_CONFIG"
-long = "config"
-help = "Path to TOML configuration"
+[help]
+url = "https://github.com/ores-otel/ores-otel-web-server.rs"
 
-[flags.api_base]
-env = "ORES_OTEL_API_BASE"
-long = "api-base"
-help = "API HTTP base URL"
+[parse]
+allow_unknown = false
 
-[flags.json]
-env = "ORES_OTEL_JSON"
-long = "json"
-switch = true
-help = "Emit JSON"
+[env]
+load = false
 
+[flags.bind]
+env = "ORES_OTEL_WEB_BIND"
+aliases = ["bind"]
+type = "string"
+default = "127.0.0.1:8081"
+help = "HTTP bind address."
+
+[flags.api-http-base]
+env = "ORES_OTEL_API_HTTP_BASE"
+aliases = ["api-http-base"]
+type = "string"
+help = "API HTTP base URL."
+
+[flags.database-url]
+env = "ORES_OTEL_DATABASE_URL"
+aliases = ["database-url"]
+type = "string"
+help = "Optional database URL for direct reads."
