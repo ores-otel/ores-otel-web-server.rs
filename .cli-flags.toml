@@ -6,6 +6,7 @@ allow_unknown = false
 
 [env]
 load = false
+files = []
 
 [flags.bind]
 env = "ORES_OTEL_WEB_BIND"
@@ -19,9 +20,3 @@ env = "ORES_OTEL_API_HTTP_BASE"
 aliases = ["api-http-base"]
 type = "string"
 help = "API HTTP base URL."
-
-[flags.database-url]
-env = "ORES_OTEL_DATABASE_URL"
-aliases = ["database-url"]
-type = "string"
-help = "Optional database URL for direct reads."
