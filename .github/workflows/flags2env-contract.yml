@@ -71,8 +71,19 @@ jobs:
           assert re.fullmatch(r'[0-9a-f]{40}', rev), rev
 
           assert cli['parse']['allow_unknown'] is False
-          assert cli.get('env', {}).get('load') is False, 'servers must not implicitly load dotenv files'
+          env_policy = cli.get('env', {})
+          assert env_policy.get('load') is False, 'servers must not implicitly load dotenv files'
+          assert env_policy.get('files') == [], 'servers must not name plaintext dotenv inputs'
           canonical_types = {'array', 'bool', 'double', 'integer', 'json', 'map', 'string'}
+          forbidden_argv_env = {
+              'ORES_OTEL_DATABASE_URL',
+              'DATABASE_URL',
+              'API_KEY',
+              'PRIVATE_KEY',
+              'TOKEN',
+              'PASSWORD',
+              'SECRET',
+          }
           for name, definition in cli.get('flags', {}).items():
               assert 'long' not in definition, f'{name} uses legacy long'
               assert 'switch' not in definition, f'{name} uses legacy switch'
@@ -81,6 +92,9 @@ jobs:
               assert isinstance(aliases, list) and name in aliases, (name, aliases)
               env_name = definition.get('env')
               assert isinstance(env_name, str) and env_name.startswith('ORES_OTEL_'), (name, env_name)
+              upper = env_name.upper()
+              assert env_name not in forbidden_argv_env
+              assert not any(marker in upper for marker in ('PASSWORD', 'SECRET', 'PRIVATE_KEY', 'DATABASE_URL'))
 
           repo_slug = repository.removeprefix('https://github.com/')
           with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
@@ -123,17 +137,103 @@ jobs:
           toolchain: stable
           components: rustfmt,clippy
 
-      - name: Check Rust formatting
+      - name: Check server Rust formatting
         working-directory: server
         run: cargo fmt --all -- --check
 
-      - name: Run all Rust tests
-        working-directory: server
-        run: cargo test --all-targets --locked
+      - name: Build credential-independent executable parser probe
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p runtime-probe/src
+          cp server/.cli-flags.toml runtime-probe/.cli-flags.toml
+          cat > runtime-probe/Cargo.toml <<'TOML'
+          [package]
+          name = "ores-otel-web-flags2env-probe"
+          version = "0.0.0"
+          edition = "2021"
+          publish = false
 
-      - name: Run strict Clippy
-        working-directory: server
-        run: cargo clippy --all-targets --locked -- -D warnings
+          [dependencies]
+          flags2env = { path = "../flags2env-runtime/clients/rust" }
+          TOML
+          cat > runtime-probe/src/lib.rs <<'RS'
+          #![forbid(unsafe_code)]
+
+          #[path = "../../server/src/env_map.rs"]
+          pub mod env_map;
+          #[path = "../../server/src/flags.rs"]
+          pub mod flags;
+
+          #[cfg(test)]
+          mod contract_tests {
+              use super::env_map::{value, EnvMap};
+              use super::flags::{apply_cli_flags_from, parse_cli_flags};
+              use std::path::{Path, PathBuf};
+
+              fn config_path() -> PathBuf {
+                  Path::new(env!("CARGO_MANIFEST_DIR")).join(".cli-flags.toml")
+              }
+
+              #[test]
+              fn repository_contract_materializes_default_bind() {
+                  let parsed = parse_cli_flags(&["svc".into()], &config_path()).expect("valid contract");
+                  assert_eq!(
+                      parsed.get("ORES_OTEL_WEB_BIND").map(String::as_str),
+                      Some("127.0.0.1:8081")
+                  );
+              }
+
+              #[test]
+              fn argv_bind_overrides_default() {
+                  let parsed = parse_cli_flags(
+                      &["svc".into(), "--bind=127.0.0.1:19091".into()],
+                      &config_path(),
+                  )
+                  .expect("valid bind override");
+                  assert_eq!(
+                      parsed.get("ORES_OTEL_WEB_BIND").map(String::as_str),
+                      Some("127.0.0.1:19091")
+                  );
+              }
+
+              #[test]
+              fn database_url_is_environment_only() {
+                  let sentinel = "postgresql://user:synthetic@invalid/db";
+                  let initial = EnvMap::from([(
+                      "ORES_OTEL_DATABASE_URL".to_owned(),
+                      sentinel.to_owned(),
+                  )]);
+                  let resolved = apply_cli_flags_from(
+                      vec!["svc".into()],
+                      initial,
+                      &config_path(),
+                  )
+                  .expect("environment-only database URL survives flag overlay");
+                  assert_eq!(value(&resolved, "ORES_OTEL_DATABASE_URL"), Some(sentinel));
+
+                  let rejected = parse_cli_flags(
+                      &["svc".into(), "--database-url=postgresql://must-not-be-accepted".into()],
+                      &config_path(),
+                  );
+                  assert!(rejected.is_err(), "credential-bearing URL must not be accepted on argv");
+              }
+
+              #[test]
+              fn unknown_option_fails_closed_without_process_mutation() {
+                  let before = std::env::var_os("ORES_OTEL_WEB_BIND");
+                  assert!(parse_cli_flags(
+                      &["svc".into(), "--not-declared".into()],
+                      &config_path(),
+                  )
+                  .is_err());
+                  assert_eq!(std::env::var_os("ORES_OTEL_WEB_BIND"), before);
+              }
+          }
+          RS
+          cargo generate-lockfile --manifest-path runtime-probe/Cargo.toml
+          cargo test --manifest-path runtime-probe/Cargo.toml --locked
+          cargo clippy --manifest-path runtime-probe/Cargo.toml --all-targets --locked -- -D warnings
 
       - name: Prove validation did not mutate owned source
         shell: bash
