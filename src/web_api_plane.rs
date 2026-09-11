@@ -10,8 +10,8 @@
 //!    not the product-web producer path.
 
 use k8s_web_api_data_plane::{
-    DataPlaneCapabilities, DirectDatabasePolicy, InteractionMode, JetStreamPolicy, OrgIdentity,
-    StatefulMtlsTcpPolicy, StatelessHttpPolicy,
+    DataPlaneCapabilities, DirectDatabasePolicy, InteractionMode, JetStreamPolicy,
+    OrgIdentity, StatelessHttpPolicy, StatefulMtlsTcpPolicy,
 };
 
 pub const GITHUB_ORG: &str = "ores-otel";
@@ -66,9 +66,6 @@ mod tests {
             caps.nats_request_subject,
             format!("dd.remote.web_api.{ORG_SLUG}.request")
         );
-        assert_eq!(
-            caps.nats_url_in_cluster,
-            "nats://dd-nats.messaging.svc.cluster.local:4222"
-        );
+        assert_eq!(caps.nats_url_in_cluster, "nats://dd-nats.messaging.svc.cluster.local:4222");
     }
 }
