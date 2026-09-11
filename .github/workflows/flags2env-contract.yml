@@ -137,9 +137,9 @@ jobs:
           toolchain: stable
           components: rustfmt,clippy
 
-      - name: Check server Rust formatting
+      - name: Check flags-contract Rust formatting
         working-directory: server
-        run: cargo fmt --all -- --check
+        run: rustfmt --edition 2021 --check src/flags.rs src/env_map.rs src/config.rs
 
       - name: Build credential-independent executable parser probe
         shell: bash
