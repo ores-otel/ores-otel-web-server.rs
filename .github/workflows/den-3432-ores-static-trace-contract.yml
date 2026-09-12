@@ -1,0 +1,37 @@
+name: ORES static trace contract
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  static-trace-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Validate newly-added trace call sites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,re,subprocess,sys
+          base=os.environ.get('GITHUB_BASE_REF')
+          ref=f'origin/{base}' if base else 'HEAD^'
+          if base: subprocess.run(['git','fetch','--no-tags','--depth=1','origin',base],check=False)
+          p=subprocess.run(['git','diff','--unified=0',ref,'HEAD','--'],text=True,stdout=subprocess.PIPE,check=False)
+          added=[x[1:] for x in p.stdout.splitlines() if x.startswith('+') and not x.startswith('+++')]
+          rx=re.compile(r"\.(?:addTrace|addTraceId|add_trace|add_trace_id)\s*\(\s*(['\"])([^'\"]+)\1")
+          errors=[]
+          for line in added:
+              if 'dd-trace-' in line: errors.append(f'new legacy dd-trace prefix: {line.strip()}')
+              if '.addRoutine(' in line: errors.append(f'use canonical addRoutineId(): {line.strip()}')
+              for m in rx.finditer(line):
+                  if not m.group(2).startswith('ores-trace-'): errors.append(f'static trace id must start with ores-trace-: {m.group(2)}')
+          if errors:
+              print('\n'.join(f'ERROR: {x}' for x in errors)); sys.exit(1)
+          print('ORES static trace contract passed; runtime trace IDs may remain dynamic.')
+          print('Cross-runtime schema parity remains fail-closed through ORESoftware/typespec-json-schema-validator.')
+          PY
