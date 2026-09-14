@@ -1,4 +1,24 @@
-name = "ores-otel-web-server.rs"
-kind = "web-server"
+[package]
+org = "ores-otel"
+name = "ores-otel-web-server"
 version = "0.1.0"
+description = "MASH web server for ores-otel"
+license = "MIT"
+language = "rust"
 
+[package.repository]
+vcs = "git"
+url = "https://github.com/ores-otel/ores-otel-web-server.rs"
+
+[build]
+command = "cargo build --release"
+outputs = ["target/release/ores-otel-web-server"]
+
+[install]
+adapter = "none"
+dir = ".vendor/.zed"
+
+[publish]
+include_readme = true
+tag_format = "v{version}"
+exclude = [".env", ".env.*", ".vendor/**", ".zed/**", "target/**", "tmp/**", "**/*.log"]
