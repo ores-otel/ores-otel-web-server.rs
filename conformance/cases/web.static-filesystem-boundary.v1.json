@@ -1,0 +1,8 @@
+{
+  "schema": "ores.conformance.case/v1",
+  "kind": "behavior",
+  "id": "web_static_filesystem_boundary",
+  "version": 1,
+  "input": {"method": "GET", "path": "/static/app.js"},
+  "expected": {"route_class": "static", "filesystem_probe_allowed": true}
+}
