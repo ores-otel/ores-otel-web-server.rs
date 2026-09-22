@@ -10,6 +10,7 @@ pub mod error;
 pub mod flags;
 pub mod pages;
 pub mod persistence;
+pub mod route_policy;
 pub mod server;
 pub mod state;
 pub mod transport;
