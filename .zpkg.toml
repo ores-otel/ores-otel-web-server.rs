@@ -22,3 +22,10 @@ dir = ".vendor/.zed"
 include_readme = true
 tag_format = "v{version}"
 exclude = [".env", ".env.*", ".vendor/**", ".zed/**", "target/**", "tmp/**", "**/*.log"]
+
+[targets.conformance]
+dir = "conformance"
+adapter = "none"
+
+[scripts]
+test = "sh conformance/check.sh --full"
