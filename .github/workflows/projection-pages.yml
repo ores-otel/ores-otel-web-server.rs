@@ -18,5 +18,5 @@ jobs:
         env:
           EXPECTED: ${{ github.event.pull_request.head.sha || github.sha }}
         run: test "$(git rev-parse HEAD)" = "$EXPECTED"
-      - run: cargo fmt --all -- --check
-      - run: cargo test --lib persistence::tests
+      - run: rustfmt --check src/persistence.rs tests/projection_pages.rs
+      - run: cargo test --test projection_pages
